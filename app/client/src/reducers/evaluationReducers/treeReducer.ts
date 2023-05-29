@@ -5,6 +5,7 @@ import { applyChange } from "deep-diff";
 import type { DataTree } from "entities/DataTree/dataTreeFactory";
 import { createImmerReducer } from "utils/ReducerUtils";
 import * as Sentry from "@sentry/react";
+import { produce } from 'immer;
 
 export type EvaluatedTreeState = DataTree;
 
@@ -23,13 +24,16 @@ const evaluatedTreeReducer = createImmerReducer(initialState, {
     if (updates.length === 0) {
       return state;
     }
+    let nextState = state;
     for (const update of updates) {
       // Null check for typescript
       if (!Array.isArray(update.path) || update.path.length === 0) {
         continue;
       }
       try {
-        applyChange(state, undefined, update);
+        nextState = produce(nextState, draftState => {
+          applyChange(draftState, undefined, update);
+        });
       } catch (e) {
         Sentry.captureException(e, {
           extra: {
@@ -39,6 +43,7 @@ const evaluatedTreeReducer = createImmerReducer(initialState, {
         });
       }
     }
+    return nextState;
   },
   [ReduxActionTypes.FETCH_PAGE_INIT]: () => initialState,
   [ReduxActionTypes.RESET_DATA_TREE]: () => initialState,
